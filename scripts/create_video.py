@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import re
 from pathlib import Path
 
 def run_script(script_name, *args):
@@ -11,7 +12,23 @@ def run_script(script_name, *args):
         return False
     return True
 
+def sanitize(name):
+    return re.sub(r'[^a-zA-Z0-9_-]', '_', name)
+
+def find_downloaded_video(search_term):
+    output = Path.home() / "ai-video-app" / "output"
+    safe_name = sanitize(search_term)
+    candidate = output / f"{safe_name}.mp4"
+    if candidate.exists():
+        return safe_name
+    candidate2 = output / f"{search_term}.mp4"
+    if candidate2.exists():
+        return search_term
+    return safe_name
+
 def create_video(text, search_term, video_name, subtitles="on", style="default", music="off"):
+    video_name = sanitize(video_name)
+    
     print(f"=== Creating video: {video_name} (style: {style}, music: {music}) ===")
     
     print("[1/5] Generating audio...")
@@ -31,8 +48,11 @@ def create_video(text, search_term, video_name, subtitles="on", style="default",
     if not run_script("fetch_video.py", search_term):
         return
     
+    actual_video_name = find_downloaded_video(search_term)
+    print(f"Using video file: {actual_video_name}.mp4")
+    
     print("[4/5] Merging audio + video...")
-    if not run_script("merge_video.py", search_term, audio_for_merge, f"{video_name}_merged"):
+    if not run_script("merge_video.py", actual_video_name, audio_for_merge, f"{video_name}_merged"):
         return
     
     if subtitles.lower() == "on":
@@ -46,6 +66,8 @@ def create_video(text, search_term, video_name, subtitles="on", style="default",
         merged = Path.home() / "ai-video-app" / "output" / f"{video_name}_merged.mp4"
         final = Path.home() / "ai-video-app" / "output" / f"{video_name}_final.mp4"
         if merged.exists():
+            if final.exists():
+                final.unlink()
             merged.rename(final)
             print(f"SUCCESS: {final}")
     
@@ -54,7 +76,6 @@ def create_video(text, search_term, video_name, subtitles="on", style="default",
 if __name__ == "__main__":
     if len(sys.argv) < 5:
         print("Usage: python create_video.py <text> <search> <name> <on/off> [style] [music on/off]")
-        print("Styles: default, white, yellow_big, top_white, green_bold")
         sys.exit(1)
     style = sys.argv[5] if len(sys.argv) >= 6 else "default"
     music = sys.argv[6] if len(sys.argv) >= 7 else "off"
