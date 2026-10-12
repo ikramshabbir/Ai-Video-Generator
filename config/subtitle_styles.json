@@ -1,0 +1,7 @@
+{
+  "default": {"font_size": 24, "primary_color": "&H00FFFF&", "outline_color": "&H000000&", "outline_width": 2, "alignment": 2, "bold": 0},
+  "white": {"font_size": 28, "primary_color": "&HFFFFFF&", "outline_color": "&H000000&", "outline_width": 3, "alignment": 2, "bold": 1},
+  "yellow_big": {"font_size": 32, "primary_color": "&H00FFFF&", "outline_color": "&H000000&", "outline_width": 2, "alignment": 2, "bold": 1},
+  "top_white": {"font_size": 26, "primary_color": "&HFFFFFF&", "outline_color": "&H000000&", "outline_width": 2, "alignment": 8, "bold": 0},
+  "green_bold": {"font_size": 30, "primary_color": "&H00FF00&", "outline_color": "&H000000&", "outline_width": 2, "alignment": 2, "bold": 1}
+}

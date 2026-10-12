@@ -11,8 +11,8 @@ def run_script(script_name, *args):
         return False
     return True
 
-def create_video(text, search_term, video_name, subtitles="on"):
-    print(f"=== Creating video: {video_name} ===")
+def create_video(text, search_term, video_name, subtitles="on", style="default"):
+    print(f"=== Creating video: {video_name} (style: {style}) ===")
     
     print("[1/4] Generating audio...")
     if not run_script("generate_audio.py", video_name, text):
@@ -30,19 +30,22 @@ def create_video(text, search_term, video_name, subtitles="on"):
         print("[4/4] Generating + burning subtitles...")
         if not run_script("make_subtitles.py", video_name, text, f"{video_name}_subs"):
             return
-        if not run_script("burn_subtitles.py", f"{video_name}_merged", f"{video_name}_subs", f"{video_name}_final"):
+        if not run_script("burn_subtitles.py", f"{video_name}_merged", f"{video_name}_subs", f"{video_name}_final", style):
             return
     else:
         print("[4/4] Subtitles OFF - skipping")
         merged = Path.home() / "ai-video-app" / "output" / f"{video_name}_merged.mp4"
         final = Path.home() / "ai-video-app" / "output" / f"{video_name}_final.mp4"
-        merged.rename(final)
-        print(f"SUCCESS: {final}")
+        if merged.exists():
+            merged.rename(final)
+            print(f"SUCCESS: {final}")
     
     print(f"=== DONE: {video_name}_final.mp4 ===")
 
 if __name__ == "__main__":
     if len(sys.argv) < 5:
-        print("Usage: python create_video.py <text> <search_term> <video_name> <subtitles on/off>")
+        print("Usage: python create_video.py <text> <search> <name> <on/off> [style]")
+        print("Styles: default, white, yellow_big, top_white, green_bold")
         sys.exit(1)
-    create_video(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    style = sys.argv[5] if len(sys.argv) >= 6 else "default"
+    create_video(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], style)
