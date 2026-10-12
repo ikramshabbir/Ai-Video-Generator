@@ -15,25 +15,35 @@ def run_script(script_name, *args):
 def sanitize(name):
     return re.sub(r'[^a-zA-Z0-9_-]', '_', name)
 
+def detect_script(text):
+    if re.search(r'[\u0900-\u097F]', text):
+        return 'devanagari'
+    if re.search(r'[\u0600-\u06FF]', text):
+        return 'arabic'
+    return 'roman'
+
 def find_downloaded_video(search_term):
     output = Path.home() / "ai-video-app" / "output"
     safe_name = sanitize(search_term)
-    candidate = output / f"{safe_name}.mp4"
-    if candidate.exists():
+    if (output / f"{safe_name}.mp4").exists():
         return safe_name
-    candidate2 = output / f"{search_term}.mp4"
-    if candidate2.exists():
+    if (output / f"{search_term}.mp4").exists():
         return search_term
     return safe_name
 
-def create_video(text, search_term, video_name, subtitles="on", style="default", music="off"):
+def create_video(text, search_term, video_name, subtitles="on", style="default", music="off", translate=True):
     video_name = sanitize(video_name)
     
     print(f"=== Creating video: {video_name} (style: {style}, music: {music}) ===")
     
     print("[1/5] Generating audio...")
-    if not run_script("generate_audio.py", video_name, text):
-        return
+    script = detect_script(text)
+    if script == 'roman' and translate:
+        if not run_script("generate_audio.py", video_name, text, "--translate"):
+            return
+    else:
+        if not run_script("generate_audio.py", video_name, text):
+            return
     
     if music.lower() == "on":
         print("[2/5] Mixing with background music...")
@@ -75,8 +85,9 @@ def create_video(text, search_term, video_name, subtitles="on", style="default",
 
 if __name__ == "__main__":
     if len(sys.argv) < 5:
-        print("Usage: python create_video.py <text> <search> <name> <on/off> [style] [music on/off]")
+        print("Usage: python create_video.py <text> <search> <name> <on/off> [style] [music] [translate]")
         sys.exit(1)
     style = sys.argv[5] if len(sys.argv) >= 6 else "default"
     music = sys.argv[6] if len(sys.argv) >= 7 else "off"
-    create_video(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], style, music)
+    translate = sys.argv[7].lower() != "off" if len(sys.argv) >= 8 else True
+    create_video(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], style, music, translate)
