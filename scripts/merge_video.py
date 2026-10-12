@@ -16,15 +16,17 @@ def merge(video_file, audio_file, output_name):
     
     cmd = [
         "ffmpeg", "-y",
+        "-stream_loop", "-1",
         "-i", str(video_path),
         "-i", str(audio_path),
-        "-c:v", "copy",
+        "-c:v", "libx264",
         "-c:a", "aac",
         "-shortest",
+        "-pix_fmt", "yuv420p",
         str(output_path)
     ]
     
-    print(f"Merging...")
+    print(f"Merging (video loops to match audio length)...")
     result = subprocess.run(cmd, capture_output=True, text=True)
     
     if result.returncode == 0:

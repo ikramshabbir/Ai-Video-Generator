@@ -2,5 +2,8 @@
 .env
 *.key
 
-# Large media files (optional - comment out agar rakhna hai)
-# output/*.mp4
+# Large media files
+output/*.mp4
+output/*.mp3
+output/*.srt
+input/music.mp3
