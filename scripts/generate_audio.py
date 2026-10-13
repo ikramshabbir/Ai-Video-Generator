@@ -9,6 +9,12 @@ ROOTFS = Path("/data/data/com.termux/files/usr/var/lib/proot-distro/containers/u
 PIPER_OUTPUT = ROOTFS / "root" / "piper" / "output.wav"
 TERMUX_OUTPUT = Path.home() / "ai-video-app" / "output"
 
+PIPER_MODELS = {
+    "piper-male": "hi_IN-pratham-medium.onnx",
+    "piper-female": "hi_IN-priyamvada-medium.onnx",
+    "piper-kid": "hi_IN-priyamvada-medium.onnx",
+}
+
 def detect_script(text):
     if re.search(r'[\u0900-\u097F]', text):
         return 'devanagari'
@@ -40,9 +46,12 @@ def generate_gtts(text, output_path, lang, tld):
     tts.save(str(output_path))
     print(f"gTTS Audio saved: {output_path}")
 
-def generate_piper(text, output_path, filename):
-    print(f"Using Piper (natural voice)...")
-    ubuntu_cmd = f'bash /root/piper/run_piper.sh "{text}" /root/piper/output.wav'
+def generate_piper(text, output_path, filename, voice):
+    model = PIPER_MODELS.get(voice, "hi_IN-pratham-medium.onnx")
+    is_kid = voice == "piper-kid"
+    print(f"Using Piper ({voice}) — model: {model}")
+    
+    ubuntu_cmd = f'cd /root/piper && echo "{text}" | ./piper --model models/{model} --output_file /root/piper/output.wav --quiet 2>/dev/null'
     cmd = ["proot-distro", "login", "ubuntu", "--", "bash", "-c", ubuntu_cmd]
     result = subprocess.run(cmd, capture_output=True, text=True)
     
@@ -50,22 +59,33 @@ def generate_piper(text, output_path, filename):
         print(f"Piper ERROR: {result.stderr[-200:]}")
         return False
     
-    import subprocess as sp
-    sp.run(["cp", str(PIPER_OUTPUT), str(output_path)])
+    wav_path = TERMUX_OUTPUT / f"{filename}.wav"
+    subprocess.run(["cp", str(PIPER_OUTPUT), str(wav_path)])
     PIPER_OUTPUT.unlink()
     
-    mp3_path = output_path.with_suffix('.mp3')
-    ffmpeg_cmd = ["ffmpeg", "-y", "-i", str(output_path), "-codec:a", "libmp3lame", "-qscale:a", "4", str(mp3_path)]
-    sp.run(ffmpeg_cmd, capture_output=True)
-    output_path.unlink()
+    if is_kid:
+        print("Applying kid voice effect...")
+        mp3_path = output_path
+        ffmpeg_cmd = [
+            "ffmpeg", "-y", "-i", str(wav_path),
+            "-filter_complex", "asetrate=22050*1.15,atempo=1/1.15",
+            "-codec:a", "libmp3lame", "-qscale:a", "4",
+            str(mp3_path)
+        ]
+        subprocess.run(ffmpeg_cmd, capture_output=True)
+        wav_path.unlink()
+        print(f"Piper (kid) Audio saved: {mp3_path}")
+    else:
+        mp3_path = output_path
+        ffmpeg_cmd = ["ffmpeg", "-y", "-i", str(wav_path), "-codec:a", "libmp3lame", "-qscale:a", "4", str(mp3_path)]
+        subprocess.run(ffmpeg_cmd, capture_output=True)
+        wav_path.unlink()
+        print(f"Piper Audio saved: {mp3_path}")
     
-    print(f"Piper Audio saved: {mp3_path}")
     return True
 
 def text_to_audio(text, filename, force_translate=False, voice="gtts"):
-    wav_path = TERMUX_OUTPUT / f"{filename}.wav"
     mp3_path = TERMUX_OUTPUT / f"{filename}.mp3"
-    
     script = detect_script(text)
     
     if script == 'devanagari':
@@ -92,12 +112,12 @@ def text_to_audio(text, filename, force_translate=False, voice="gtts"):
             final_text = text
             print("Detected: Roman — using Urdu voice")
     
-    if voice.lower() == "piper":
+    if voice.startswith("piper"):
         if lang == 'ur':
             print("⚠️ Piper only supports Hindi — using gTTS for Urdu")
             generate_gtts(final_text, mp3_path, lang, tld)
         else:
-            success = generate_piper(final_text, wav_path, filename)
+            success = generate_piper(final_text, mp3_path, filename, voice)
             if not success:
                 print("Piper failed, falling back to gTTS")
                 generate_gtts(final_text, mp3_path, lang, tld)
@@ -108,7 +128,8 @@ def text_to_audio(text, filename, force_translate=False, voice="gtts"):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python generate_audio.py <filename> <text> [--translate] [--voice piper|gtts]")
+        print("Usage: python generate_audio.py <filename> <text> [--translate] [--voice X]")
+        print("Voice: gtts | piper-male | piper-female | piper-kid")
         sys.exit(1)
     filename = sys.argv[1]
     text = sys.argv[2]
